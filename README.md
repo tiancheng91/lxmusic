@@ -6,6 +6,7 @@
     <a href="#cli-usage">CLI</a> •
     <a href="#mcp-server">MCP</a> •
     <a href="#configuration">Configuration</a> •
+    <a href="#local-source">Local Source</a> •
     <a href="#build--publish">Build</a>
   </p>
 </div>
@@ -14,14 +15,15 @@
 
 ## Features
 
-- **搜索** — 音乐 / 专辑，支持 QQ音乐（tx）和 网易云（wy）双音源
-- **播放** — 获取播放直链，`--json` 含歌词
-- **下载** — 单曲 / 整张专辑，带进度条，文件名 `ID_歌名.mp3`
-- **歌单** — 创建、搜索添加、查看、播放、导出 M3U8
-- **配置** — `lxmusic config set` 运行时修改配置
-- **MCP** — 标准 MCP server（搜索/播放/歌单工具）
-- **xiaozhi 兼容** — 支持小智智能体协议，搜索并播放音乐（工具本身不提供音乐内容）
-- **多音质** — 128k / 320k / FLAC / Hi-Res
+- **多音源** — QQ音乐（tx）、网易云（wy）、本地文件扫描（local）
+- **搜索** — 音乐 / 专辑，音源间自由切换
+- **播放** — 获取播放直链或本地路径，`--json` 含歌词
+- **下载** — 单曲 / 整张专辑下载，带进度条，自动降级音质
+- **歌单** — YAML 存储，创建、搜索添加（多选）、查看、播放、导出 M3U8
+- **本地源** — 扫描音乐目录，同时解析 YAML 歌单文件，`search album` 按歌单名匹配
+- **配置** — `lxmusic config set` 运行时修改，只需关心 `data_dir` + `music_dir`
+- **MCP** — 标准 MCP server + xiaozhi 兼容 MCP（WSS 注册）
+- **多音质** — 128k / 320k / FLAC / Hi-Res，不可用时自动降级
 
 ## Quick Start
 
@@ -69,13 +71,6 @@ cd lxmusic
 uv sync
 ```
 
-### 配置默认音源
-
-```yaml
-# ~/.config/lxmusic/config.yaml
-default_source: wy
-```
-
 ## CLI Usage
 
 ### Search
@@ -84,6 +79,7 @@ default_source: wy
 lxmusic search music "儿歌" --page 1
 lxmusic search album "范特西"
 lxmusic search music "周杰伦" --source wy --json
+lxmusic search album "我的最爱" --source local      # 本地歌单匹配
 ```
 
 ### Play
@@ -114,7 +110,8 @@ lxmusic download 509781655 --source wy --dir ~/Music # 网易云歌曲
 ### Album
 
 ```bash
-lxmusic album 003DFRzD192KKD                          # 下载整张专辑
+lxmusic album 003DFRzD192KKD                          # 远程专辑
+lxmusic album "巧虎儿歌" --source local                 # 本地歌单曲目
 lxmusic album 003DFRzD192KKD --dir ~/Music/七里香       # 指定目录
 lxmusic album 003DFRzD192KKD --quality flac             # 无损音质
 lxmusic album 003DFRzD192KKD --json                     # JSON 输出
@@ -134,9 +131,11 @@ lxmusic playlist export "我的最爱" --dir ~/Music          # 导出 M3U8
 ### Config
 
 ```bash
-lxmusic config set api_key your_key_here
-lxmusic config set default_source wy
-lxmusic config set default_quality flac
+lxmusic config set api_key your_key_here                 # 设置密钥
+lxmusic config set default_source local                  # 默认本地源
+lxmusic config set music_dir ~/Music                     # 音乐文件目录
+lxmusic config set data_dir ~/.config/lxmusic             # 数据目录
+lxmusic config set default_quality flac                   # 默认音质
 lxmusic config set api_key ""                             # 删除配置项
 lxmusic config show                                       # 查看当前配置
 ```
@@ -149,7 +148,7 @@ lxmusic config show                                       # 查看当前配置
 lxmusic mcp
 ```
 
-标准工具：搜索、播放、歌单（详情见 skills/lxmusic.md）
+标准工具：search_music, search_album, play_music
 
 ### xiaozhi 兼容 MCP
 
@@ -160,7 +159,12 @@ lxmusic 实现了 xiaozhi 智能体协议（[协议参考](https://github.com/ha
 #### 协议流程
 
 1. `musicPlayer(query)` → 搜索音乐，返回 `resource://read_<source>_<id>` 列表
-2. `resource/read` → 客户端请求资源时，惰性解析播放地址并从 CDN 拉取音频数据（base64 编码），结果 LRU 缓存 5 分钟
+2. `resource/read` → 客户端请求资源时，惰性解析播放地址（LRU 缓存 5 分钟），本地文件直接读取，远程 CDN 拉取后 base64 返回
+
+#### 搜索策略
+
+- **本地源（default_source=local）**：优先搜索 `search album` 匹配歌单名返回整张歌单，再搜索 `search music` 按文件名匹配
+- **远程源（tx/wy）**：只搜索 `search music` 返回歌曲
 
 #### 配置示例
 
@@ -187,20 +191,20 @@ lxmusic xiaozhi --wss "wss://api.xiaozhi.me/mcp/?token=your_token"
 
 #### 使用本地音乐源
 
-配置本地音乐目录后，lxmusic 会扫描目录中的音频文件并通过 `musicPlayer` 返回：
-
 ```bash
 # 设置本地音乐目录
-lxmusic config set local_dirs /path/to/your/music
+lxmusic config set music_dir /path/to/your/music
+lxmusic config set default_source local
 
-# 搜索本地音乐（source 为 local）
-lxmusic search music "周杰伦" --source local
+# 搜索本地音乐 — album 优先匹配歌单，music 按文件名匹配
+lxmusic search album "巧虎" --source local
+lxmusic search music "小毛驴" --source local
 
-# xiaozhi 模式下搜索本地音乐
-# musicPlayer("周杰伦") 会自动包含本地目录中的匹配文件
+# 下载本地歌单所有歌曲
+lxmusic album "巧虎儿歌" --source local --dir ./巧虎儿歌
 ```
 
-本地音乐播放时，`resource/read` 直接从本地文件读取，无需网络传输。
+本地音乐播放时 `resource/read` 直接从本地文件读取，无需网络传输。
 
 #### 网络音源
 
@@ -209,8 +213,23 @@ lxmusic search music "周杰伦" --source local
 lxmusic config set api_key your_key_here
 
 # xiaozhi 默认使用 128k 低码率播放，减少网络开销
-# 搜索时自动包含 QQ音乐 和 网易云 结果
 lxmusic xiaozhi
+```
+
+## Local Source
+
+本地源支持两种资产：
+
+- **音频文件** — `.mp3` `.flac` `.wav` `.m4a` `.ogg` `.wma`，按文件名搜索
+- **歌单 YAML** — 目录下 `*.yaml` 文件，解析 `name` + `tracks` 结构，通过 `search album` 匹配歌单名
+
+YAML 格式示例（`巧虎儿歌.yaml`）：
+
+```yaml
+name: 巧虎儿歌
+tracks:
+  - {"id": 1, "title": "小毛驴", "artist": "儿童歌曲", "path": "/music/小毛驴.mp3"}
+  - {"id": 2, "title": "粉刷匠", "artist": "儿童歌曲", "path": "/music/粉刷匠.mp3"}
 ```
 
 ## Configuration
@@ -250,36 +269,7 @@ data_dir/
 music_dir/               # 用户音乐文件
 ```
 
-`lxmusic playlist add` 下载的歌曲缓存到 `cache_dir`（默认 `~/.config/lxmusic/cache/`），`lxmusic download` 默认下载到当前目录。
-
-## Project Structure
-
-```
-lxmusic/
-├── lxmusic/
-│   ├── sources/
-│   │   ├── __init__.py    # Source 抽象基类
-│   │   ├── tx.py          # QQ 音乐源
-│   │   └── wy.py          # 网易云音乐源
-│   ├── client.py          # MusicClient 组合层
-│   ├── playurl.py         # 播放提供器（shiqianjiang）
-│   ├── config.py          # 配置加载
-│   ├── errors.py          # 异常类
-│   ├── models.py          # 数据模型
-│   ├── storage.py         # 缓存 + 歌单
-│   ├── cli.py             # CLI 命令（play/download/album/playlist/search）
-│   ├── mcp_server.py      # 标准 MCP server
-│   ├── mcp_xiaozhi.py     # xiaozhi 兼容 MCP server
-│   └── main.py            # 入口
-├── tests/
-├── scripts/
-├── skills/
-├── .github/workflows/
-│   ├── ci.yml
-│   └── publish.yml
-├── pyproject.toml
-└── README.md
-```
+`lxmusic playlist add` 下载的歌曲缓存到 `data_dir/cache/`，`lxmusic download` 默认下载到当前目录。
 
 ## Build & Publish
 
