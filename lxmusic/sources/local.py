@@ -1,5 +1,6 @@
 """本地音乐源 — 扫描目录中的音频文件及歌单 YAML。"""
 
+import hashlib
 import json
 import os
 import random
@@ -63,8 +64,11 @@ class LocalSource(Source):
                         result.append((f.stem, tracks))
         return result
 
+    def _file_id(self, path: str) -> int:
+        return int(hashlib.md5(path.encode()).hexdigest()[:12], 16) % (10**10)
+
     def _path_to_music_item(self, path: Path, idx: int) -> MusicItem:
-        file_id = abs(hash(str(path))) % (10**10)
+        file_id = self._file_id(str(path))
         return MusicItem(
             id=file_id,
             songmid=str(path),
@@ -80,10 +84,10 @@ class LocalSource(Source):
         path = track.get("path", "")
         p = Path(path)
         if p.exists() and p.suffix.lower() in AUDIO_EXT:
-            file_id = abs(hash(path)) % (10**10)
+            file_id = self._file_id(path)
             qualities = {"128k": {"size": p.stat().st_size, "bitrate": 128000}}
         else:
-            file_id = abs(hash(path)) % (10**10)
+            file_id = self._file_id(path)
             qualities = {}
         return MusicItem(
             id=file_id,
@@ -121,11 +125,15 @@ class LocalSource(Source):
         return {"is_end": True, "data": []}
 
     def get_music_info(self, songmid: str | None = None, song_id: int | None = None) -> MusicItem | None:
-        if not songmid:
+        if songmid:
+            p = Path(songmid)
+            if p.exists() and p.suffix.lower() in AUDIO_EXT:
+                return self._path_to_music_item(p, 0)
             return None
-        p = Path(songmid)
-        if p.exists() and p.suffix.lower() in AUDIO_EXT:
-            return self._path_to_music_item(p, 0)
+        if song_id is not None:
+            for f in self._scan_files():
+                if self._file_id(str(f)) == song_id:
+                    return self._path_to_music_item(f, 0)
         return None
 
     def get_album_info(self, album_mid: str) -> dict:
