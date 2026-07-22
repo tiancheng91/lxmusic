@@ -27,7 +27,8 @@
 
 ```bash
 # 安装
-uv pip install lxmusic
+uv tool install lxmusic
+# 或: pipx install lxmusic
 
 # 设置 API 密钥（从 https://source.shiqianjiang.cn/ 获取）
 lxmusic config set api_key your_key_here
@@ -56,7 +57,8 @@ lxmusic mcp
 ### 从 PyPI
 
 ```bash
-uv pip install lxmusic
+uv tool install lxmusic
+# 或: pipx install lxmusic
 ```
 
 ### 从源码
