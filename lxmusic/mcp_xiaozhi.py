@@ -123,14 +123,42 @@ def create_xiaozhi_server(cfg: Config, client: MusicClient):
             raise ValueError(f"Unknown tool: {name}")
 
         query = arguments.get("query", "")
-        result = client.search_music(query, 1)
         items: list[types.TextContent | types.EmbeddedResource] = []
 
-        for song in result["data"][:10]:
-            sid = str(song.id)
-            tag = _make_tag(song.source, sid)
-            items.append(
-                types.EmbeddedResource(
+        if cfg.default_source == "local":
+            # 本地源：优先搜索 album（歌单），其次搜索歌曲
+            album_result = client.search_album(query, 1, source="local")
+            for a in album_result.get("data", [])[:5]:
+                info = client.get_album_info(a.album_mid, source="local")
+                for song in info.get("music_list", [])[:5]:
+                    items.append(types.EmbeddedResource(
+                        type="resource",
+                        resource=types.Resource(
+                            uri=f"resource://read_local_{song.id}",
+                            name=f"{song.title} - {song.artist}",
+                            description=f"source=local,album={a.title}",
+                            mimeType="audio/mpeg",
+                        ),
+                    ))
+            song_result = client.search_music(query, 1, source="local")
+            for song in song_result.get("data", [])[:5]:
+                sid = str(song.id)
+                items.append(types.EmbeddedResource(
+                    type="resource",
+                    resource=types.Resource(
+                        uri=f"resource://read_local_{sid}",
+                        name=f"{song.title} - {song.artist}",
+                        description=f"source=local,id={sid}",
+                        mimeType="audio/mpeg",
+                    ),
+                ))
+        else:
+            # 远程源：只搜索歌曲
+            result = client.search_music(query, 1)
+            for song in result["data"][:10]:
+                sid = str(song.id)
+                tag = _make_tag(song.source, sid)
+                items.append(types.EmbeddedResource(
                     type="resource",
                     resource=types.Resource(
                         uri=f"resource://read_{tag}",
@@ -138,8 +166,7 @@ def create_xiaozhi_server(cfg: Config, client: MusicClient):
                         description=f"source={song.source},id={sid}",
                         mimeType="audio/mpeg",
                     ),
-                )
-            )
+                ))
 
         return items or [types.TextContent(type="text", text="[]")]
 
