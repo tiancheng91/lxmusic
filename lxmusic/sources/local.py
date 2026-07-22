@@ -9,7 +9,7 @@ from pathlib import Path
 import yaml
 
 from lxmusic.config import SUPPORTED_QUALITIES
-from lxmusic.models import MusicItem
+from lxmusic.models import AlbumItem, MusicItem
 from lxmusic.sources import Source
 
 AUDIO_EXT = {".mp3", ".flac", ".wav", ".m4a", ".ogg", ".wma"}
@@ -104,25 +104,37 @@ class LocalSource(Source):
         q = query.lower()
         matched = []
 
-        # 1. 按文件名匹配音频文件
+        # 按文件名匹配音频文件
         for f in self._scan_files():
             if q in f.stem.lower():
                 matched.append(self._path_to_music_item(f, len(matched)))
 
-        # 2. 按歌单名匹配 YAML 歌单，匹配则将曲目加入结果
-        for name, tracks in self._scan_playlists():
-            if q in name.lower():
-                for t in tracks:
-                    matched.append(self._track_to_music_item(t))
-
-        # 默认随机打乱
         random.shuffle(matched)
 
         offset = (page - 1) * 20
         return {"is_end": len(matched) <= offset + 20, "data": matched[offset : offset + 20]}
 
     def search_album(self, query: str, page: int = 1) -> dict:
-        return {"is_end": True, "data": []}
+        """搜索本地歌单 YAML，匹配 name 字段。"""
+        q = query.lower()
+        matched = []
+        for name, tracks in self._scan_playlists():
+            if q in name.lower():
+                matched.append(AlbumItem(
+                    id=self._file_id(name),
+                    album_mid=name,
+                    title=name,
+                    artist="",
+                    source="local",
+                ))
+        return {"is_end": True, "data": matched}
+
+    def get_album_info(self, album_mid: str) -> dict:
+        """按歌单名查找 YAML，返回曲目列表。"""
+        for name, tracks in self._scan_playlists():
+            if name == album_mid:
+                return {"music_list": [self._track_to_music_item(t) for t in tracks]}
+        return {"music_list": []}
 
     def get_music_info(self, songmid: str | None = None, song_id: int | None = None) -> MusicItem | None:
         if songmid:
@@ -135,9 +147,6 @@ class LocalSource(Source):
                 if self._file_id(str(f)) == song_id:
                     return self._path_to_music_item(f, 0)
         return None
-
-    def get_album_info(self, album_mid: str) -> dict:
-        return {"music_list": []}
 
     def get_lyric(self, songmid: str) -> dict:
         return {"raw_lrc": "", "translation": ""}

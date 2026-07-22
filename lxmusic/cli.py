@@ -213,7 +213,11 @@ def album_download_cmd(ctx: click.Context, album_id: str, source: str | None, qu
             continue
 
         url, actual_q = _resolve_play_url(client, song, quality)
-        _download_file(url, dest, lambda c, t: _progress_bar(dest.name, c, t))
+        if Path(url).exists():
+            import shutil
+            shutil.copy2(url, dest)
+        else:
+            _download_file(url, dest, lambda c, t: _progress_bar(dest.name, c, t))
         results.append({"id": song.id, "title": song.title, "path": str(dest)})
 
     if as_json:
@@ -224,7 +228,7 @@ def album_download_cmd(ctx: click.Context, album_id: str, source: str | None, qu
             click.echo(f"  {r['id']}  {r['title']}  ->  {r['path']}")
 
     # 在下载目录创建同名歌单
-    album_name = songs[0].album or f"album_{album_id}"
+    album_name = songs[0].album or album_id
     pl_path = out / f"{sanitize(album_name)}.yaml"
     tracks = []
     for song in songs:
@@ -322,7 +326,11 @@ def playlist_add_cmd(ctx: click.Context, name: str, query: str, source: str | No
                 click.echo(f"  跳过 {song.title}: 无可用音质")
                 continue
             dest = cache_dir / f"{song.id}_{sanitize(song.title)}{QUALITY_EXT.get(used_quality, '.mp3')}"
-            _download_file(url, dest, lambda c, t: _progress_bar(dest.name, c, t))
+            if Path(url).exists():
+                import shutil
+                shutil.copy2(url, dest)
+            else:
+                _download_file(url, dest, lambda c, t: _progress_bar(dest.name, c, t))
 
         track = {
             "id": song.id,
