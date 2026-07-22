@@ -49,6 +49,16 @@ def _progress_bar(filename: str, current: int, total: int) -> None:
         click.echo()
 
 
+def _resolve_play_url(client: MusicClient, song: MusicItem, quality: str) -> tuple[str, str]:
+    """获取播放 URL，不可用时自动降级到 128k。返回 (url, actual_quality)。"""
+    for q in [quality, "128k"] if quality != "128k" else [quality]:
+        try:
+            return client.get_play_url(song, q), q
+        except Exception:
+            continue
+    raise LXMusicError(f"无可用的音质: {song.title}")
+
+
 @click.group()
 @click.pass_context
 def cli(ctx: click.Context) -> None:
@@ -125,7 +135,7 @@ def play_cmd(ctx: click.Context, song_ref: str, source: str | None, quality: str
     if not song:
         raise SongNotFoundError(f"未找到歌曲: {song_ref}")
 
-    url = client.get_play_url(song, quality)
+    url, actual_q = _resolve_play_url(client, song, quality)
     if as_json:
         result = {"url": url, "quality": quality, "song": asdict(song)}
         try:
@@ -160,7 +170,7 @@ def download_cmd(ctx: click.Context, song_ref: str, source: str | None, quality:
     out.mkdir(parents=True, exist_ok=True)
     dest = out / f"{song.id}_{sanitize(song.title)}{QUALITY_EXT.get(quality, '.mp3')}"
 
-    url = client.get_play_url(song, quality)
+    url, actual_q = _resolve_play_url(client, song, quality)
     if song.source == "local":
         import shutil
         shutil.copy2(url, dest)
@@ -202,7 +212,7 @@ def album_download_cmd(ctx: click.Context, album_id: str, source: str | None, qu
             results.append({"id": song.id, "title": song.title, "path": str(dest)})
             continue
 
-        url = client.get_play_url(song, quality)
+        url, actual_q = _resolve_play_url(client, song, quality)
         _download_file(url, dest, lambda c, t: _progress_bar(dest.name, c, t))
         results.append({"id": song.id, "title": song.title, "path": str(dest)})
 
@@ -306,15 +316,9 @@ def playlist_add_cmd(ctx: click.Context, name: str, query: str, source: str | No
         dest = cache_dir / f"{song.id}_{sanitize(song.title)}{QUALITY_EXT.get(quality, '.mp3')}"
 
         if not dest.exists() or dest.stat().st_size == 0:
-            url = None
-            for q in [used_quality, "128k"] if used_quality != "128k" else [used_quality]:
-                try:
-                    url = client.get_play_url(song, q)
-                    used_quality = q
-                    break
-                except Exception:
-                    continue
-            if not url:
+            try:
+                url, used_quality = _resolve_play_url(client, song, used_quality)
+            except LXMusicError:
                 click.echo(f"  跳过 {song.title}: 无可用音质")
                 continue
             dest = cache_dir / f"{song.id}_{sanitize(song.title)}{QUALITY_EXT.get(used_quality, '.mp3')}"

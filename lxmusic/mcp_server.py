@@ -5,7 +5,7 @@ from typing import Any
 
 from lxmusic.client import MusicClient
 from lxmusic.config import Config
-from lxmusic.errors import LXMusicError
+from lxmusic.errors import LXMusicError, QualityNotAvailableError
 
 
 def create_mcp_server(
@@ -53,7 +53,14 @@ def create_mcp_server(
             if not song:
                 return _err("song_not_found", "未找到歌曲")
             url = client.get_play_url(song, quality)
-            result = {"url": url, "quality": quality, "song": asdict(song)}
+            actual_q = quality
+            if url is None:
+                try:
+                    url = client.get_play_url(song, "128k")
+                    actual_q = "128k"
+                except Exception:
+                    pass
+            result = {"url": url, "quality": actual_q, "song": asdict(song)}
             try:
                 lyric = client.get_lyric(song.songmid)
                 if lyric.get("raw_lrc"):
