@@ -237,42 +237,77 @@ tracks:
 
 ## Configuration
 
-优先级：**环境变量 > config.yaml > 默认值**
+### 配置项说明
 
-用户只需要关心两个路径：
+优先级：**环境变量 > config.yaml > 默认值**
 
 | Environment Variable | Description | Default |
 |---|---|---|
 | `LX_MUSIC_API_KEY` | API 密钥（必填） | — |
 | `LX_MUSIC_API_URL` | 后端 API 地址 | `https://source.shiqianjiang.cn/api/music` |
-| `LX_MUSIC_DEFAULT_SOURCE` | 默认音源 | `tx` |
-| `LX_MUSIC_DEFAULT_QUALITY` | 默认音质 | `320k` |
+| `LX_MUSIC_DEFAULT_SOURCE` | 默认音源（tx/wy/local） | `tx` |
+| `LX_MUSIC_DEFAULT_QUALITY` | 默认音质（128k/320k/flac/hires） | `320k` |
 | `LX_MUSIC_DATA_DIR` | lxmusic 数据目录 | `~/.config/lxmusic` |
 | `LX_MUSIC_MUSIC_DIR` | 本地音乐目录（逗号分隔多目录） | `~/.config/lxmusic/library` |
 
-`~/.config/lxmusic/config.yaml`（首次运行自动生成），可通过 `lxmusic config set` 管理：
+### 目录结构
+
+用户只需要关心两个路径：**数据放哪** 和 **音乐文件在哪**，其余子目录自动推导：
+
+```
+data_dir/                    # lxmusic 数据目录（默认 ~/.config/lxmusic）
+├── config.yaml              # 配置文件
+├── playlists/               # 歌单 YAML 文件
+├── cache/                   # 下载缓存（playlist add 下载的音频）
+├── library/                 # 曲库索引
+└── history/                 # 播放历史
+
+music_dir/                   # 用户音乐文件目录（可多个，逗号分隔）
+└── 巧虎儿歌/
+    ├── *.mp3
+    └── 巧虎儿歌.yaml        # 歌单文件（自动识别）
+```
+
+### 配置示例
 
 ```yaml
+# ~/.config/lxmusic/config.yaml
 api_key: your_key_here
-default_source: wy
-data_dir: ~/.config/lxmusic
-music_dir: ~/Music
+api_url: https://source.shiqianjiang.cn/api/music
+default_source: local          # 默认使用本地源
+default_quality: 320k
+data_dir: ~/.config/lxmusic     # 数据目录
+music_dir: ~/Music,/mnt/music  # 本地音乐目录（多个用逗号分隔）
 ```
 
-子目录自动推导：
+### 常用命令
 
+```bash
+# 查看当前配置
+lxmusic config show
+
+# 设置 API 密钥
+lxmusic config set api_key your_key_here
+
+# 切换默认音源
+lxmusic config set default_source local
+
+# 设置本地音乐目录（支持多个）
+lxmusic config set music_dir "~/Music,/mnt/music"
+
+# 改变数据目录
+lxmusic config set data_dir ~/.config/lxmusic
+
+# 删除配置项（恢复默认）
+lxmusic config set api_key ""
 ```
-data_dir/
-├── config.yaml
-├── playlists/           # 歌单 YAML
-├── cache/               # 下载缓存
-├── library/             # 曲库索引
-└── history/             # 播放历史
 
-music_dir/               # 用户音乐文件
-```
+### 路径说明
 
-`lxmusic playlist add` 下载的歌曲缓存到 `data_dir/cache/`，`lxmusic download` 默认下载到当前目录。
+- `playlist_dir` → `data_dir/playlists/` — `lxmusic playlist` 命令操作的文件
+- `cache_dir` → `data_dir/cache/` — `lxmusic playlist add` 下载的音频缓存
+- `local_dirs` → `music_dir` 的值 — `LocalSource` 扫描的目录
+- `lxmusic download` 默认下载到**当前目录**，`--dir` 指定其他位置
 
 ## Build & Publish
 
