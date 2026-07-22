@@ -41,12 +41,12 @@ class LocalSource(Source):
                     files.append(f)
         return files
 
-    def _parse_playlist_yaml(self, path: Path) -> list[dict] | None:
-        """解析歌单 YAML，返回 track 列表，非歌单格式返回 None。"""
+    def _parse_playlist_yaml(self, path: Path) -> tuple[str, list[dict]] | None:
+        """解析歌单 YAML，返回 (name, tracks)，非歌单格式返回 None。"""
         try:
             data = yaml.safe_load(path.read_text())
             if isinstance(data, dict) and data.get("name") and isinstance(data.get("tracks"), list):
-                return data["tracks"]
+                return data["name"], data["tracks"]
         except Exception:
             pass
         return None
@@ -59,9 +59,9 @@ class LocalSource(Source):
                 continue
             for f in d.rglob("*.yaml"):
                 if f.is_file():
-                    tracks = self._parse_playlist_yaml(f)
-                    if tracks is not None:
-                        result.append((f.stem, tracks))
+                    parsed = self._parse_playlist_yaml(f)
+                    if parsed is not None:
+                        result.append(parsed)
         return result
 
     def _file_id(self, path: str) -> int:
