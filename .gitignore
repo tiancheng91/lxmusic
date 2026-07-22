@@ -1,0 +1,8 @@
+__pycache__/
+*.egg-info/
+.venv/
+uv.lock
+.pytest_cache/
+tx.js?key=CERU_KEY-*
+docs/
+skills/
