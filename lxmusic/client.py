@@ -38,10 +38,7 @@ class MusicClient:
             if not cls:
                 raise ValueError(f"未知音源: {name}，可选: {', '.join(_SOURCES)}")
             if cls is LocalSource:
-                local_dirs = getattr(self._cfg, "local_dirs", [])
-                if isinstance(local_dirs, str):
-                    local_dirs = [d.strip() for d in local_dirs.split(",") if d.strip()]
-                self._sources[name] = cls(local_dirs)
+                self._sources[name] = cls(self._cfg.local_dirs)
             else:
                 self._sources[name] = cls()
         return self._sources[name]

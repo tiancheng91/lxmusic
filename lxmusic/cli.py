@@ -311,7 +311,7 @@ def playlist_add_cmd(ctx: click.Context, name: str, query: str, source: str | No
             raise click.Abort()
 
     store = PlaylistStore(cfg.playlist_dir)
-    cache_dir = Path(cfg.cache_dir).expanduser().resolve()
+    cache_dir = cfg.cache_dir
     added = []
 
     for idx in indices:
@@ -425,7 +425,7 @@ def config() -> None:
 def config_set_cmd(ctx: click.Context, key: str, value: str) -> None:
     """设置配置项。value 为空时删除该项。
 
-    常用 key: api_key, api_url, default_source, default_quality, cache_dir, local_dirs
+    常用 key: api_key, api_url, default_source, default_quality, data_dir, music_dir
     """
     cfg: Config = ctx.obj["config"]
     cfg.set(key, value)

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-CONFIG_DIR = Path.home() / ".config" / "lxmusic"
+DATA_DIR = Path.home() / ".config" / "lxmusic"
 
 QUALITY_EXT = {"128k": ".mp3", "320k": ".mp3", "flac": ".flac", "hires": ".flac"}
 SUPPORTED_QUALITIES = ["128k", "320k", "flac", "hires"]
@@ -22,17 +22,20 @@ QQ_HEADERS = {
 
 
 class Config:
-    """配置加载：环境变量 > YAML 配置文件 > 内置默认值。首次运行自动落盘。"""
+    """配置加载：环境变量 > YAML 配置文件 > 内置默认值。首次运行自动落盘。
+
+    用户只需要知道两个路径：
+      data_dir  — lxmusic 数据存放位置（config.yaml / playlists / cache）
+      music_dir — 本地音乐文件目录
+    """
 
     _env_map = {
         "api_url": "LX_MUSIC_API_URL",
         "api_key": "LX_MUSIC_API_KEY",
         "default_quality": "LX_MUSIC_DEFAULT_QUALITY",
         "default_source": "LX_MUSIC_DEFAULT_SOURCE",
-        "local_dirs": "LX_MUSIC_LOCAL_DIRS",
-        "library_dir": "LX_MUSIC_LIBRARY_DIR",
-        "playlist_dir": "LX_MUSIC_PLAYLIST_DIR",
-        "cache_dir": "LX_MUSIC_CACHE_DIR",
+        "data_dir": "LX_MUSIC_DATA_DIR",
+        "music_dir": "LX_MUSIC_MUSIC_DIR",
     }
 
     def __init__(self) -> None:
@@ -42,7 +45,7 @@ class Config:
         self._set_defaults()
 
     def _load_yaml(self) -> None:
-        yaml_path = CONFIG_DIR / "config.yaml"
+        yaml_path = DATA_DIR / "config.yaml"
         if yaml_path.exists():
             try:
                 file_data = yaml.safe_load(yaml_path.read_text())
@@ -58,29 +61,50 @@ class Config:
                 self._data[key] = val
 
     def _set_defaults(self) -> None:
-        base = Path.home() / ".config" / "lxmusic"
         self._data.setdefault("api_url", "https://source.shiqianjiang.cn/api/music")
         self._data.setdefault("default_quality", "320k")
         self._data.setdefault("default_source", "tx")
-        self._data.setdefault("local_dirs", str(base / "library"))
-        self._data.setdefault("library_dir", str(base / "library"))
-        self._data.setdefault("playlist_dir", str(base / "playlists"))
-        self._data.setdefault("cache_dir", str(base / "cache"))
+        self._data.setdefault("data_dir", str(DATA_DIR))
+        self._data.setdefault("music_dir", str(DATA_DIR / "library"))
 
     def save_defaults(self) -> None:
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        yaml_path = CONFIG_DIR / "config.yaml"
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        yaml_path = DATA_DIR / "config.yaml"
         if not yaml_path.exists():
-            base = Path.home() / ".config" / "lxmusic"
             defaults = {
                 "api_url": "https://source.shiqianjiang.cn/api/music",
                 "default_quality": "320k",
                 "default_source": "tx",
-                "library_dir": str(base / "library"),
-                "playlist_dir": str(base / "playlists"),
-                "cache_dir": str(base / "cache"),
+                "data_dir": str(DATA_DIR),
+                "music_dir": str(DATA_DIR / "library"),
             }
             yaml_path.write_text(yaml.dump(defaults, default_flow_style=False, allow_unicode=True))
+
+    # -- 路径推导 -----------------------------------------------------------
+
+    @property
+    def playlist_dir(self) -> Path:
+        return Path(self.data_dir) / "playlists"
+
+    @property
+    def cache_dir(self) -> Path:
+        return Path(self.data_dir) / "cache"
+
+    @property
+    def local_dirs(self) -> list[str]:
+        """本地音乐目录列表，支持逗号分隔。"""
+        val = self._data.get("music_dir", "")
+        if not val:
+            return []
+        return [d.strip() for d in val.split(",") if d.strip()]
+
+    @property
+    def data_dir(self) -> str:
+        return self._data.get("data_dir", str(DATA_DIR))
+
+    @property
+    def music_dir(self) -> str:
+        return self._data.get("music_dir", str(DATA_DIR / "library"))
 
     def __getattr__(self, name: str) -> str:
         if name in self._data:
@@ -91,16 +115,14 @@ class Config:
 
     def set(self, key: str, value: str) -> None:
         """写入配置项到 config.yaml 并刷新内存。"""
-        yaml_path = CONFIG_DIR / "config.yaml"
+        yaml_path = DATA_DIR / "config.yaml"
         data: dict = {}
         if yaml_path.exists():
             data = yaml.safe_load(yaml_path.read_text()) or {}
-        # 如果 value 是空字符串则删除该项
         if not value:
             data.pop(key, None)
         else:
             data[key] = value
-        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
         yaml_path.write_text(yaml.dump(data, default_flow_style=False, allow_unicode=True))
-        # 刷新内存
         self._data[key] = value

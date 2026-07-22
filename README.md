@@ -217,29 +217,38 @@ lxmusic xiaozhi
 
 优先级：**环境变量 > config.yaml > 默认值**
 
+用户只需要关心两个路径：
+
 | Environment Variable | Description | Default |
 |---|---|---|
 | `LX_MUSIC_API_KEY` | API 密钥（必填） | — |
 | `LX_MUSIC_API_URL` | 后端 API 地址 | `https://source.shiqianjiang.cn/api/music` |
 | `LX_MUSIC_DEFAULT_SOURCE` | 默认音源 | `tx` |
 | `LX_MUSIC_DEFAULT_QUALITY` | 默认音质 | `320k` |
-| `LX_MUSIC_LOCAL_DIRS` | 本地音乐目录（逗号分隔多目录） | `~/.config/lxmusic/library` |
-| `LX_MUSIC_LIBRARY_DIR` | 曲库索引目录 | `~/.config/lxmusic/library` |
-| `LX_MUSIC_PLAYLIST_DIR` | 歌单目录 | `~/.config/lxmusic/playlists` |
-| `LX_MUSIC_CACHE_DIR` | 下载缓存目录 | `~/.config/lxmusic/cache` |
+| `LX_MUSIC_DATA_DIR` | lxmusic 数据目录 | `~/.config/lxmusic` |
+| `LX_MUSIC_MUSIC_DIR` | 本地音乐目录（逗号分隔多目录） | `~/.config/lxmusic/library` |
 
 `~/.config/lxmusic/config.yaml`（首次运行自动生成），可通过 `lxmusic config set` 管理：
 
 ```yaml
 api_key: your_key_here
 default_source: wy
+data_dir: ~/.config/lxmusic
+music_dir: ~/Music
 ```
 
-所有数据集中存储在 `~/.config/lxmusic/` 下：
+子目录自动推导：
 
-- `library/` — 曲库元信息（scan.json, index.db）
-- `playlists/` — YAML 歌单文件
-- `cache/` — 下载缓存
+```
+data_dir/
+├── config.yaml
+├── playlists/           # 歌单 YAML
+├── cache/               # 下载缓存
+├── library/             # 曲库索引
+└── history/             # 播放历史
+
+music_dir/               # 用户音乐文件
+```
 
 `lxmusic playlist add` 下载的歌曲缓存到 `cache_dir`（默认 `~/.config/lxmusic/cache/`），`lxmusic download` 默认下载到当前目录。
 
