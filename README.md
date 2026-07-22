@@ -50,6 +50,9 @@ lxmusic download 102065756 --dir ~/Music
 # 下载整张专辑
 lxmusic album 003DFRzD192KKD --dir ~/Music/七里香
 
+# 搜索专辑
+lxmusic search album "范特西"
+
 # 启动 MCP server
 lxmusic mcp
 ```
