@@ -278,14 +278,28 @@ def playlist_create_cmd(ctx: click.Context, name: str, as_json: bool) -> None:
 @click.argument("query")
 @click.option("--source", default=None, help="音源: tx/wy，默认配置文件或 tx")
 @click.option("--quality", default="320k", type=click.Choice(SUPPORTED_QUALITIES))
+@click.option("--limit", default=20, type=int, help="拉取搜索结果条数（自动翻页，默认 20）")
 @click.option("--json", "as_json", is_flag=True)
 @click.pass_context
-def playlist_add_cmd(ctx: click.Context, name: str, query: str, source: str | None, quality: str, as_json: bool) -> None:
+def playlist_add_cmd(ctx: click.Context, name: str, query: str, source: str | None, quality: str, limit: int, as_json: bool) -> None:
     """搜索歌曲并添加到歌单。"""
     client: MusicClient = ctx.obj["client"]
     cfg: Config = ctx.obj["config"]
-    result = client.search_music(query, page=1, source=source)
-    songs = result.get("data", [])[:10]
+
+    # 自动翻页拉取 limit 条
+    songs: list[MusicItem] = []
+    page = 1
+    while len(songs) < limit:
+        result = client.search_music(query, page=page, source=source)
+        data = result.get("data", [])
+        if not data:
+            break
+        songs.extend(data)
+        if result.get("is_end"):
+            break
+        page += 1
+    songs = songs[:limit]
+
     if not songs:
         click.echo("无搜索结果", err=True)
         raise click.Abort()
