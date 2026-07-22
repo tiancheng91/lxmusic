@@ -41,17 +41,17 @@ lxmusic search music "周杰伦"
 # 搜索音乐（网易云）
 lxmusic search music "周杰伦" --source wy
 
+# 搜索专辑
+lxmusic search album "范特西"
+
 # 播放，返回 URL 和歌词
 lxmusic play 102065756 --json
 
 # 下载单曲
 lxmusic download 102065756 --dir ~/Music
 
-# 下载整张专辑
+# 下载整张专辑（先搜索得到 album_id，再下载）
 lxmusic album 003DFRzD192KKD --dir ~/Music/七里香
-
-# 搜索专辑
-lxmusic search album "范特西"
 
 # 启动 MCP server
 lxmusic mcp
