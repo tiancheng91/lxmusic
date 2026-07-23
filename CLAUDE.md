@@ -24,8 +24,6 @@ uv tool install .
 uv run lxmusic --help
 uv run lxmusic search music "周杰伦"
 uv run lxmusic mcp                          # 标准 MCP server
-uv run lxmusic xiaozhi                      # xiaozhi 兼容 MCP server (stdio)
-uv run lxmusic xiaozhi --wss <url>          # 通过 WSS 注册到小智
 ```
 
 ## 架构
@@ -69,28 +67,17 @@ uv run lxmusic xiaozhi --wss <url>          # 通过 WSS 注册到小智
 
 `lxmusic/main.py` 根据 `sys.argv[1]` 分发：
 - `mcp` → 标准 MCP server（FastMCP，stdio）
-- `xiaozhi` → xiaozhi 兼容 MCP server（低层 `mcp.server.Server`）
 - 其他 → CLI 命令组（click）
 
 ### CLI 命令组（`cli.py`）
 
-`search` / `play` / `download` / `album` / `playlist` / `config` / `xiaozhi`
+`search` / `play` / `download` / `album` / `playlist` / `config`
 
 关键实现细节：
 - `_resolve_play_url(client, song, quality)` — 请求音质不可用时自动降级到 128k
 - `playlist add` 支持 `--limit`（默认 20）自动翻页拉取搜索结果
 - `album` 下载时若 URL 是本地路径用 `shutil.copy2`，否则走 `_download_file`
 - 下载进度条通过 `_progress_bar` 回调显示
-
-### xiaozhi MCP（`mcp_xiaozhi.py`）
-
-实现小智智能体协议：
-- `musicPlayer(query)` → 返回 `EmbeddedResource` 列表
-- `resource/read` → 惰性解析播放地址 + LRU 缓存（5 分钟 TTL）
-- 搜索策略：本地源优先 `search_album`（匹配歌单）再 `search_music`；远程源只 `search_music`
-- `_PlayURLCache` 自己实现 LRU + TTL（不用 `functools.lru_cache`，因为要按 key 查找）
-- WSS 模式通过子进程启动 stdio MCP，双向管道转发
-- 启动时输出 `logging` 日志到 stderr，包含音源/音质/密钥状态
 
 ## 配置系统
 

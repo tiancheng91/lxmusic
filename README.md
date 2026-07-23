@@ -22,7 +22,7 @@
 - **歌单** — YAML 存储，创建、搜索添加（多选）、查看、播放、导出 M3U8
 - **本地源** — 扫描音乐目录，同时解析 YAML 歌单文件，`search album` 按歌单名匹配
 - **配置** — `lxmusic config set` 运行时修改，只需关心 `data_dir` + `music_dir`
-- **MCP** — 标准 MCP server + xiaozhi 兼容 MCP（WSS 注册）
+- **MCP** — 标准 MCP server（搜索/播放工具）
 - **多音质** — 128k / 320k / FLAC / Hi-Res，不可用时自动降级
 
 ## Quick Start
@@ -152,72 +152,6 @@ lxmusic mcp
 ```
 
 标准工具：search_music, search_album, play_music
-
-### xiaozhi 兼容 MCP
-
-**免责声明：** lxmusic 工具本身不提供任何音乐内容。它仅作为搜索和播放的中介层，通过第三方 API 获取音乐元信息和播放链接，这些链接指向用户自行部署的第三方服务。用户需自行确保使用方式符合相关法律法规。
-
-lxmusic 实现了 xiaozhi 智能体协议（[协议参考](https://github.com/hackers365/mcp_audio_server)），支持通过 `musicPlayer` 工具搜索并播放音乐。
-
-#### 协议流程
-
-1. `musicPlayer(query)` → 搜索音乐，返回 `resource://read_<source>_<id>` 列表
-2. `resource/read` → 客户端请求资源时，惰性解析播放地址（LRU 缓存 5 分钟），本地文件直接读取，远程 CDN 拉取后 base64 返回
-
-#### 搜索策略
-
-- **本地源（default_source=local）**：优先搜索 `search album` 匹配歌单名返回整张歌单，再搜索 `search music` 按文件名匹配
-- **远程源（tx/wy）**：只搜索 `search music` 返回歌曲
-
-#### 配置示例
-
-```json
-{
-  "mcpServers": {
-    "lxmusic-xiaozhi": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/lxmusic", "lxmusic", "xiaozhi"]
-    }
-  }
-}
-```
-
-#### 启动方式
-
-```bash
-# stdio 模式（默认，适用于 Claude Code 等 MCP 客户端）
-lxmusic xiaozhi
-
-# WebSocket 模式（注册到小智云端）
-lxmusic xiaozhi --wss "wss://api.xiaozhi.me/mcp/?token=your_token"
-```
-
-#### 使用本地音乐源
-
-```bash
-# 设置本地音乐目录
-lxmusic config set music_dir /path/to/your/music
-lxmusic config set default_source local
-
-# 搜索本地音乐 — album 优先匹配歌单，music 按文件名匹配
-lxmusic search album "巧虎" --source local
-lxmusic search music "小毛驴" --source local
-
-# 下载本地歌单所有歌曲
-lxmusic album "巧虎儿歌" --source local --dir ./巧虎儿歌
-```
-
-本地音乐播放时 `resource/read` 直接从本地文件读取，无需网络传输。
-
-#### 网络音源
-
-```bash
-# 设置 API 密钥（从 https://source.shiqianjiang.cn/ 获取）
-lxmusic config set api_key your_key_here
-
-# xiaozhi 默认使用 128k 低码率播放，减少网络开销
-lxmusic xiaozhi
-```
 
 ## Local Source
 

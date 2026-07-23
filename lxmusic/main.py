@@ -16,9 +16,6 @@ def main() -> None:
         client = MusicClient(cfg)
         server = create_mcp_server(cfg, client)
         server.run()
-    elif len(sys.argv) > 1 and sys.argv[1] == "xiaozhi":
-        from lxmusic.cli import cli
-        cli()
     else:
         from lxmusic.cli import cli
         try:

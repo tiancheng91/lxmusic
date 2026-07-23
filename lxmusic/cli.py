@@ -452,15 +452,3 @@ def config_show_cmd(ctx: click.Context) -> None:
     """显示当前配置。"""
     cfg: Config = ctx.obj["config"]
     click.echo(yaml.dump(cfg._data, default_flow_style=False, allow_unicode=True).strip())
-
-
-@cli.command("xiaozhi")
-@click.option("--wss", default=None, help="WSS 接入点 URL，通过 WebSocket 注册到小智")
-@click.pass_context
-def xiaozhi_cmd(ctx: click.Context, wss: str | None) -> None:
-    """启动 xiaozhi 兼容 MCP server。
-
-    默认走 stdio；指定 --wss 后通过 WebSocket 注册到小智代理。
-    """
-    from lxmusic.mcp_xiaozhi import run_xiaozhi_server
-    run_xiaozhi_server(wss_url=wss)
